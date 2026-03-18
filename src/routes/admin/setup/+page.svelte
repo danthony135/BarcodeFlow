@@ -4,7 +4,6 @@
 	// Collapsible sections state
 	let openSections = $state<Record<string, boolean>>({
 		requirements: false,
-		tunnel: false,
 		agent: false,
 		apikey: false,
 		status: true,
@@ -105,6 +104,12 @@
 		</div>
 	</div>
 
+	<!-- How it works callout -->
+	<div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+		<p class="text-sm font-medium text-blue-900 mb-1">No firewall changes needed</p>
+		<p class="text-xs text-blue-700">The sync agent runs on your server and makes <strong>outbound</strong> HTTPS requests to BarcodeFlow in the cloud. It pulls PO data down and pushes barcodes back — all outbound traffic. No ports need to be opened, no VPN, no tunnel.</p>
+	</div>
+
 	<!-- Section 1: Server Requirements -->
 	<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 		<button
@@ -168,92 +173,7 @@
 		{/if}
 	</div>
 
-	<!-- Section 2: Install Cloudflare Tunnel -->
-	<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-		<button
-			onclick={() => toggle('tunnel')}
-			class="w-full px-4 py-3.5 flex items-center justify-between text-left"
-		>
-			<div class="flex items-center gap-3">
-				<div class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
-					<span class="text-base">2</span>
-				</div>
-				<div>
-					<h2 class="text-sm font-semibold text-gray-900">Install Cloudflare Tunnel</h2>
-					<p class="text-xs text-gray-500">Secure connection without opening firewall ports</p>
-				</div>
-			</div>
-			<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-400 transition-transform {openSections.tunnel ? 'rotate-180' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-			</svg>
-		</button>
-		{#if openSections.tunnel}
-			<div class="px-4 pb-4 space-y-4 border-t border-gray-50">
-				<div class="mt-3">
-					<h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Step 1: Download cloudflared</h3>
-					<p class="text-xs text-gray-600 mb-2">Download the Windows installer from Cloudflare:</p>
-					<div class="relative">
-						<pre class="bg-gray-900 text-gray-100 text-xs p-3 rounded-lg overflow-x-auto"><code>winget install Cloudflare.cloudflared</code></pre>
-						<button onclick={() => copyToClipboard('winget install Cloudflare.cloudflared', 'cf1')} class="absolute top-2 right-2 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded transition-colors">
-							{copied === 'cf1' ? 'Copied!' : 'Copy'}
-						</button>
-					</div>
-				</div>
-
-				<div>
-					<h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Step 2: Authenticate</h3>
-					<div class="relative">
-						<pre class="bg-gray-900 text-gray-100 text-xs p-3 rounded-lg overflow-x-auto"><code>cloudflared tunnel login</code></pre>
-						<button onclick={() => copyToClipboard('cloudflared tunnel login', 'cf2')} class="absolute top-2 right-2 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded transition-colors">
-							{copied === 'cf2' ? 'Copied!' : 'Copy'}
-						</button>
-					</div>
-					<p class="text-xs text-gray-500 mt-1">This opens a browser to authenticate with your Cloudflare account.</p>
-				</div>
-
-				<div>
-					<h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Step 3: Create tunnel</h3>
-					<div class="relative">
-						<pre class="bg-gray-900 text-gray-100 text-xs p-3 rounded-lg overflow-x-auto"><code>cloudflared tunnel create barcodeflow-sync</code></pre>
-						<button onclick={() => copyToClipboard('cloudflared tunnel create barcodeflow-sync', 'cf3')} class="absolute top-2 right-2 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded transition-colors">
-							{copied === 'cf3' ? 'Copied!' : 'Copy'}
-						</button>
-					</div>
-					<p class="text-xs text-gray-500 mt-1">Save the tunnel ID from the output — you need it for the config.</p>
-				</div>
-
-				<div>
-					<h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Step 4: Create config file</h3>
-					<p class="text-xs text-gray-600 mb-2">Create <code class="bg-gray-100 px-1 py-0.5 rounded text-xs">%USERPROFILE%\.cloudflared\config.yml</code>:</p>
-					<div class="relative">
-						<pre class="bg-gray-900 text-gray-100 text-xs p-3 rounded-lg overflow-x-auto"><code>tunnel: YOUR_TUNNEL_ID
-credentials-file: %USERPROFILE%\.cloudflared\YOUR_TUNNEL_ID.json
-
-ingress:
-  - hostname: barcodeflow-sync.yourdomain.com
-    service: http://localhost:8080
-  - service: http_status:404</code></pre>
-						<button onclick={() => copyToClipboard(`tunnel: YOUR_TUNNEL_ID\ncredentials-file: %USERPROFILE%\\.cloudflared\\YOUR_TUNNEL_ID.json\n\ningress:\n  - hostname: barcodeflow-sync.yourdomain.com\n    service: http://localhost:8080\n  - service: http_status:404`, 'cf4')} class="absolute top-2 right-2 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded transition-colors">
-							{copied === 'cf4' ? 'Copied!' : 'Copy'}
-						</button>
-					</div>
-				</div>
-
-				<div>
-					<h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Step 5: Install as Windows Service</h3>
-					<div class="relative">
-						<pre class="bg-gray-900 text-gray-100 text-xs p-3 rounded-lg overflow-x-auto"><code>cloudflared service install</code></pre>
-						<button onclick={() => copyToClipboard('cloudflared service install', 'cf5')} class="absolute top-2 right-2 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded transition-colors">
-							{copied === 'cf5' ? 'Copied!' : 'Copy'}
-						</button>
-					</div>
-					<p class="text-xs text-gray-500 mt-1">The tunnel will now start automatically when Windows boots.</p>
-				</div>
-			</div>
-		{/if}
-	</div>
-
-	<!-- Section 3: Install Sync Agent -->
+	<!-- Section 2: Install Sync Agent -->
 	<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 		<button
 			onclick={() => toggle('agent')}
@@ -261,7 +181,7 @@ ingress:
 		>
 			<div class="flex items-center gap-3">
 				<div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
-					<span class="text-base">3</span>
+					<span class="text-base">2</span>
 				</div>
 				<div>
 					<h2 class="text-sm font-semibold text-gray-900">Install Sync Agent</h2>
@@ -334,7 +254,7 @@ python install_service.py start</code></pre>
 		{/if}
 	</div>
 
-	<!-- Section 4: API Key Setup -->
+	<!-- Section 3: API Key Setup -->
 	<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 		<button
 			onclick={() => toggle('apikey')}
@@ -342,7 +262,7 @@ python install_service.py start</code></pre>
 		>
 			<div class="flex items-center gap-3">
 				<div class="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
-					<span class="text-base">4</span>
+					<span class="text-base">3</span>
 				</div>
 				<div>
 					<h2 class="text-sm font-semibold text-gray-900">API Key Setup</h2>
@@ -395,7 +315,7 @@ python install_service.py start</code></pre>
 		{/if}
 	</div>
 
-	<!-- Section 5: Connection Status -->
+	<!-- Section 4: Connection Status -->
 	<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 		<button
 			onclick={() => toggle('status')}
@@ -403,7 +323,7 @@ python install_service.py start</code></pre>
 		>
 			<div class="flex items-center gap-3">
 				<div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
-					<span class="text-base">5</span>
+					<span class="text-base">4</span>
 				</div>
 				<div>
 					<h2 class="text-sm font-semibold text-gray-900">Connection Status</h2>
@@ -489,7 +409,7 @@ python install_service.py start</code></pre>
 		{/if}
 	</div>
 
-	<!-- Section 6: Barcode Flow Explanation -->
+	<!-- Section 5: Barcode Flow Explanation -->
 	<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 		<button
 			onclick={() => toggle('flow')}
@@ -497,7 +417,7 @@ python install_service.py start</code></pre>
 		>
 			<div class="flex items-center gap-3">
 				<div class="w-8 h-8 rounded-lg bg-cyan-50 flex items-center justify-center">
-					<span class="text-base">6</span>
+					<span class="text-base">5</span>
 				</div>
 				<div>
 					<h2 class="text-sm font-semibold text-gray-900">How Barcode Sync Works</h2>
