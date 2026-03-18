@@ -21,12 +21,53 @@
 		createdAt: string;
 	}
 
+	interface LabelTemplate {
+		id: string;
+		name: string;
+		width: number;
+		height: number;
+		elements: any[];
+		isDefault: boolean;
+		updatedAt: string;
+	}
+
 	const sampleLabels: Label[] = [
 		{ id: '1', barcode: '8901234567890', sku: 'ASH-SOF-1234', description: 'Darcy Sofa - Blue', printCount: 3, createdAt: '10:42 AM' },
 		{ id: '2', barcode: '8901234567891', sku: 'SRT-MAT-5678', description: 'Perfect Sleeper Queen', printCount: 1, createdAt: '9:15 AM' },
 		{ id: '3', barcode: '8901234567892', sku: 'LZB-REC-9012', description: 'Pinnacle Recliner - Brown', printCount: 2, createdAt: 'Yesterday' },
 		{ id: '4', barcode: '8901234567893', sku: 'ASH-TBL-3456', description: 'Woodanville Dining Table', printCount: 1, createdAt: 'Yesterday' }
 	];
+
+	let templates = $state<LabelTemplate[]>([]);
+	let loadingTemplates = $state(true);
+
+	$effect(() => {
+		loadTemplates();
+	});
+
+	async function loadTemplates() {
+		loadingTemplates = true;
+		try {
+			const res = await fetch('/api/labels/templates');
+			if (res.ok) {
+				templates = await res.json();
+			}
+		} catch {
+			// ignore
+		} finally {
+			loadingTemplates = false;
+		}
+	}
+
+	async function deleteTemplate(id: string) {
+		if (!confirm('Delete this template?')) return;
+		try {
+			await fetch(`/api/labels/templates/${id}`, { method: 'DELETE' });
+			templates = templates.filter((t) => t.id !== id);
+		} catch {
+			// ignore
+		}
+	}
 
 	let filteredLabels = $derived(
 		activeTab === 'search' && searchQuery
@@ -42,20 +83,103 @@
 		showCreateModal = false;
 		newLabel = { sku: '', description: '', poNumber: '', building: '', labelType: 'receiving' };
 	}
+
+	function formatDate(dateStr: string): string {
+		try {
+			return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+		} catch {
+			return dateStr;
+		}
+	}
 </script>
 
 <div class="page-enter p-4 space-y-4">
 	<!-- Header -->
 	<div class="flex items-center justify-between">
 		<h1 class="text-xl font-bold text-gray-900">Labels</h1>
-		<button
-			type="button"
-			onclick={() => (showCreateModal = true)}
-			class="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-xl active:bg-primary-dark transition-colors"
-		>
-			Create Label
-		</button>
+		<div class="flex items-center gap-2">
+			<a
+				href="/labels/designer"
+				class="px-4 py-2 border border-primary text-primary text-sm font-semibold rounded-xl active:bg-primary/5 transition-colors"
+			>
+				Design Label
+			</a>
+			<button
+				type="button"
+				onclick={() => (showCreateModal = true)}
+				class="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-xl active:bg-primary-dark transition-colors"
+			>
+				Create Label
+			</button>
+		</div>
 	</div>
+
+	<!-- Saved Templates -->
+	{#if templates.length > 0}
+		<div>
+			<div class="flex items-center justify-between mb-2">
+				<p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Templates</p>
+				<a href="/labels/designer" class="text-xs text-primary font-medium">+ New</a>
+			</div>
+			<div class="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4">
+				{#each templates as tmpl}
+					<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-3 min-w-[160px] max-w-[200px] flex-shrink-0 relative group">
+						<!-- Mini preview -->
+						<div class="bg-gray-50 rounded-lg h-16 mb-2 flex items-center justify-center border border-gray-100 overflow-hidden">
+							<div class="w-12 h-8 border border-gray-300 bg-white rounded-[2px] relative">
+								{#each (tmpl.elements ?? []).slice(0, 4) as el}
+									<div
+										class="absolute {el.type === 'barcode' ? 'bg-gray-400' : 'bg-gray-300'} rounded-[1px]"
+										style="left: {el.x}%; top: {el.y}%; width: {el.width}%; height: {Math.max(el.height, 4)}%;"
+									></div>
+								{/each}
+							</div>
+						</div>
+						<p class="text-xs font-semibold text-gray-900 truncate">{tmpl.name}</p>
+						<p class="text-[10px] text-gray-400 mt-0.5">{tmpl.width}" x {tmpl.height}" &middot; {formatDate(tmpl.updatedAt)}</p>
+						{#if tmpl.isDefault}
+							<span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary" title="Default"></span>
+						{/if}
+						<div class="flex items-center gap-1 mt-2">
+							<a
+								href="/labels/designer?id={tmpl.id}"
+								class="flex-1 text-center px-2 py-1 text-[10px] font-medium bg-primary/10 text-primary rounded-lg active:bg-primary/20 transition-colors"
+							>
+								Edit
+							</a>
+							<button
+								type="button"
+								onclick={() => deleteTemplate(tmpl.id)}
+								class="px-2 py-1 text-[10px] font-medium text-danger/60 bg-danger/5 rounded-lg active:bg-danger/10 transition-colors"
+							>
+								Delete
+							</button>
+						</div>
+					</div>
+				{/each}
+			</div>
+		</div>
+	{:else if !loadingTemplates}
+		<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+			<div class="flex items-center gap-3">
+				<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+					<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z" />
+					</svg>
+				</div>
+				<div class="min-w-0 flex-1">
+					<p class="text-sm font-semibold text-gray-900">No label templates yet</p>
+					<p class="text-xs text-gray-400 mt-0.5">Design a custom label layout with the visual editor</p>
+				</div>
+				<a
+					href="/labels/designer"
+					class="px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary rounded-lg active:bg-primary/20 transition-colors flex-shrink-0"
+				>
+					Design
+				</a>
+			</div>
+		</div>
+	{/if}
 
 	<!-- Tabs -->
 	<div class="flex bg-gray-100 rounded-xl p-1">

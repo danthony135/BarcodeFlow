@@ -10,12 +10,15 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const barcode = url.searchParams.get('barcode');
 	const dateFrom = url.searchParams.get('dateFrom');
 	const dateTo = url.searchParams.get('dateTo');
+	const search = url.searchParams.get('search');
+	const syncStatus = url.searchParams.get('syncStatus');
 	const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10) || 50, 200);
 	const offset = parseInt(url.searchParams.get('offset') ?? '0', 10) || 0;
 
 	const where: Record<string, unknown> = {};
 
 	if (type) where.scanType = type;
+	if (syncStatus) where.syncStatus = syncStatus;
 	if (poNumber) where.poNumber = { contains: poNumber, mode: 'insensitive' };
 	if (barcode) where.barcode = { contains: barcode, mode: 'insensitive' };
 	if (dateFrom || dateTo) {
@@ -24,18 +27,32 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		if (dateTo) (where.scannedAt as Record<string, unknown>).lte = new Date(dateTo);
 	}
 
-	const scans = await prisma.scan.findMany({
-		where,
-		include: {
-			user: { select: { id: true, name: true } },
-			building: { select: { id: true, name: true, code: true } }
-		},
-		orderBy: { scannedAt: 'desc' },
-		take: limit,
-		skip: offset
-	});
+	// Full-text search across multiple fields
+	if (search) {
+		where.OR = [
+			{ barcode: { contains: search, mode: 'insensitive' } },
+			{ sku: { contains: search, mode: 'insensitive' } },
+			{ description: { contains: search, mode: 'insensitive' } },
+			{ poNumber: { contains: search, mode: 'insensitive' } },
+			{ ticketNumber: { contains: search, mode: 'insensitive' } }
+		];
+	}
 
-	return json(scans);
+	const [scans, total] = await Promise.all([
+		prisma.scan.findMany({
+			where,
+			include: {
+				user: { select: { id: true, name: true } },
+				building: { select: { id: true, name: true, code: true } }
+			},
+			orderBy: { scannedAt: 'desc' },
+			take: limit,
+			skip: offset
+		}),
+		prisma.scan.count({ where })
+	]);
+
+	return json({ scans, total });
 };
 
 export const POST: RequestHandler = async ({ locals, request }) => {
