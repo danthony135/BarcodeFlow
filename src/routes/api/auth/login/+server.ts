@@ -5,45 +5,50 @@ import { verifyPin, createSession, SESSION_COOKIE_NAME } from '$lib/server/auth'
 import { dev } from '$app/environment';
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
-	const { userId, pin } = await request.json();
+	const { pin } = await request.json();
 
-	if (!userId || !pin) {
-		return json({ success: false, message: 'User and PIN are required' }, { status: 400 });
+	if (!pin) {
+		return json({ success: false, message: 'PIN is required' }, { status: 400 });
 	}
 
-	const user = await prisma.user.findUnique({
-		where: { id: userId, active: true },
+	// Find user by trying PIN against all active users
+	const activeUsers = await prisma.user.findMany({
+		where: { active: true },
 		include: { building: true }
 	});
 
-	if (!user) {
-		return json({ success: false, message: 'User not found' }, { status: 401 });
+	let matchedUser = null;
+	for (const user of activeUsers) {
+		const valid = await verifyPin(pin, user.pin);
+		if (valid) {
+			matchedUser = user;
+			break;
+		}
 	}
 
-	const valid = await verifyPin(pin, user.pin);
-	if (!valid) {
+	if (!matchedUser) {
 		return json({ success: false, message: 'Invalid PIN' }, { status: 401 });
 	}
 
-	const sessionId = await createSession(user.id);
+	const sessionId = await createSession(matchedUser.id);
 
 	cookies.set(SESSION_COOKIE_NAME, sessionId, {
 		path: '/',
 		httpOnly: true,
 		secure: !dev,
 		sameSite: 'lax',
-		maxAge: 86400 // 24 hours
+		maxAge: 86400
 	});
 
 	return json({
 		success: true,
 		user: {
-			id: user.id,
-			name: user.name,
-			role: user.role,
-			buildingId: user.buildingId,
-			building: user.building
-				? { id: user.building.id, name: user.building.name, code: user.building.code }
+			id: matchedUser.id,
+			name: matchedUser.name,
+			role: matchedUser.role,
+			buildingId: matchedUser.buildingId,
+			building: matchedUser.building
+				? { id: matchedUser.building.id, name: matchedUser.building.name, code: matchedUser.building.code }
 				: null
 		}
 	});
