@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  WORKER
+}
+
+enum ScanType {
+  RECEIVE
+  QUICK
+  INVENTORY
+  SALES
+}
+
+enum SyncStatus {
+  PENDING
+  SENT
+  CONFIRMED
+  FAILED
+}
+
+enum SyncDirection {
+  TO_RV
+  FROM_RV
+}
+
+enum LabelType {
+  RECEIVING
+  SALES
+}
+
+enum PrinterType {
+  THERMAL
+  LASER
+}
+
+model User {
+  id         String    @id @default(cuid())
+  name       String
+  pin        String
+  role       Role      @default(WORKER)
+  buildingId String?
+  building   Building? @relation(fields: [buildingId], references: [id])
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  scans      Scan[]
+  sessions   Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Building {
+  id        String    @id @default(cuid())
+  name      String
+  code      String    @unique
+  address   String?
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  users     User[]
+  scans     Scan[]
+  printers  Printer[]
+}
+
+model Scan {
+  id           String     @id @default(cuid())
+  barcode      String
+  scanType     ScanType
+  poNumber     String?
+  sku          String?
+  description  String?
+  ticketNumber String?
+  buildingId   String?
+  building     Building?  @relation(fields: [buildingId], references: [id])
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  deviceInfo   String?
+  quantity     Int        @default(1)
+  scannedAt    DateTime   @default(now())
+  syncedToRvAt DateTime?
+  syncStatus   SyncStatus @default(PENDING)
+  createdAt    DateTime   @default(now())
+
+  @@index([barcode])
+  @@index([poNumber])
+  @@index([scannedAt])
+  @@index([syncStatus])
+}
+
+model Label {
+  id           String    @id @default(cuid())
+  barcode      String    @unique
+  labelType    LabelType
+  poNumber     String?
+  sku          String?
+  description  String?
+  ticketNumber String?
+  buildingCode String?
+  receivedDate DateTime?
+  printedAt    DateTime?
+  printCount   Int       @default(0)
+  createdAt    DateTime  @default(now())
+
+  @@index([barcode])
+}
+
+model PoCache {
+  id           String        @id @default(cuid())
+  poNumber     String        @unique
+  vendor       String?
+  status       String?
+  expectedDate DateTime?
+  totalItems   Int           @default(0)
+  lastSyncedAt DateTime      @default(now())
+  lines        PoLineCache[]
+}
+
+model PoLineCache {
+  id           String   @id @default(cuid())
+  poId         String
+  po           PoCache  @relation(fields: [poId], references: [id], onDelete: Cascade)
+  sku          String
+  description  String?
+  qtyOrdered   Int      @default(0)
+  qtyReceived  Int      @default(0)
+  itemCost     Float?
+  barcode      String?
+  lastSyncedAt DateTime @default(now())
+
+  @@index([poId])
+  @@index([sku])
+}
+
+model SyncQueue {
+  id          String        @id @default(cuid())
+  direction   SyncDirection
+  entityType  String
+  entityId    String?
+  payload     Json
+  status      SyncStatus    @default(PENDING)
+  attempts    Int           @default(0)
+  error       String?
+  createdAt   DateTime      @default(now())
+  processedAt DateTime?
+
+  @@index([status])
+  @@index([direction])
+}
+
+model Printer {
+  id         String      @id @default(cuid())
+  name       String
+  type       PrinterType
+  ipAddress  String?
+  buildingId String?
+  building   Building?   @relation(fields: [buildingId], references: [id])
+  active     Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
