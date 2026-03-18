@@ -106,5 +106,12 @@
 	{/if}
 
 	<!-- Pin pad -->
-	<PinPad {error} {loading} onSubmit={handlePinSubmit} />
+	{#if selectedUserId}
+		<div class="w-full max-w-xs">
+			<p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-4 text-center">Enter your PIN</p>
+			<PinPad {error} {loading} onSubmit={handlePinSubmit} />
+		</div>
+	{:else if users.length > 0}
+		<p class="text-sm text-gray-400 mt-2">Select your name above to continue</p>
+	{/if}
 </div>

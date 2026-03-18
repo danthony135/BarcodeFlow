@@ -13,8 +13,18 @@
 
 	let pin = $state('');
 
+	$effect(() => {
+		if (error) {
+			setTimeout(() => { pin = ''; }, 300);
+		}
+	});
+
 	function handleKey(digit: string) {
-		if (loading || pin.length >= pinLength) return;
+		if (loading) return;
+		if (pin.length >= pinLength) {
+			pin = digit;
+			return;
+		}
 		pin += digit;
 		if (pin.length === pinLength) {
 			onSubmit(pin);
