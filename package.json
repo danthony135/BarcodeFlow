@@ -5,10 +5,10 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "prisma generate && vite build && prisma migrate deploy",
+		"build": "prisma generate && vite build",
 		"db:migrate": "prisma migrate deploy",
 		"db:seed": "npx tsx prisma/seed.ts",
-		"start": "node build/index.js",
+		"start": "prisma migrate deploy && node build/index.js",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
